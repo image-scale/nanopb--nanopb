@@ -44,3 +44,11 @@
 **Commit**: Add callback field and extension field tests with encode size calculation and delimited/null-terminated mode round-trips
 **Acceptance**: 79 tests pass (callbacks, extensions, modes, sizing)
 **Verification**: tests FAIL on previous state (new file), PASS on current state (617 total)
+
+## Round 7
+**Task**: Task 7 — Dynamic memory allocation for pointer-type fields
+**Files created**: tests/test_dynalloc.c
+**Files modified**: src/pl_decode.c, src/pl_encode.c, run_test.sh
+**Commit**: Add dynamic memory allocation support for pointer-type fields with automatic memory management
+**Acceptance**: 89 tests pass (pointer scalars, strings, bytes, submessages, repeated arrays, release, round-trips)
+**Verification**: tests FAIL on previous state (new file), PASS on current state (706 total)
