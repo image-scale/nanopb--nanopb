@@ -32,4 +32,18 @@
 - [ ] pl_skip_field() skips field data based on wire type (varint, 32-bit, 64-bit, length-delimited)
 - [ ] pl_make_string_substream() creates a length-limited substream for reading length-delimited fields
 - [ ] pl_close_string_substream() closes substream and advances parent stream past consumed bytes
-- [ ] Round-trip: encoding then decoding a value produces the original value for all types
+- [x] Round-trip: encoding then decoding a value produces the original value for all types
+
+## Task 3: Message descriptor system with field iteration
+
+### Acceptance Criteria
+- [ ] pl_field_cursor_begin() initializes a field cursor to the first field of a message descriptor and loads field metadata (tag, type, data_size, etc.)
+- [ ] pl_field_cursor_next() advances the cursor to the next field and returns false when wrapping back to the start
+- [ ] pl_field_cursor_find() locates a field by tag number, returning true if found and positioning the cursor on it
+- [ ] 1-word field descriptor format correctly encodes/decodes tag (6 bits), type (8 bits), data_offset (8 bits), size_offset (4 bits), data_size (4 bits)
+- [ ] 2-word field descriptor format correctly handles larger data_offset (16 bits), data_size (12 bits), array_size (12 bits), extended tag (10 bits)
+- [ ] 4-word field descriptor format correctly handles 32-bit data_offset, data_size, 16-bit array_size, 30-bit tag
+- [ ] Field cursor correctly computes pField, pData, and pSize pointers from a struct base address and field descriptor offsets
+- [ ] For submessage fields, the cursor loads the submsg_desc pointer from the submsg_info array
+- [ ] PL_BIND macro generates correct field_info and submsg_info arrays from a FIELDLIST macro definition
+- [ ] Field iterator works with a message containing required, optional, and repeated fields
