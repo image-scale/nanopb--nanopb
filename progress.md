@@ -28,3 +28,11 @@
 **Commit**: Add automatic message encoding that iterates struct fields and produces wire format output
 **Acceptance**: 16/16 criteria met
 **Verification**: tests FAIL on previous state (patch cannot apply), PASS on current state
+
+## Round 5
+**Task**: Task 5 — Automatic message decoding with required field validation
+**Files created**: tests/test_msg_decode.c
+**Files modified**: src/pl_decode.c, run_test.sh
+**Commit**: Add automatic message decoding that reads wire format tags, finds matching fields via descriptor lookup, and decodes each value into a C struct with required field validation
+**Acceptance**: 17/17 criteria met
+**Verification**: tests FAIL on previous state (64 of 107 fail), PASS on current state (538 total)

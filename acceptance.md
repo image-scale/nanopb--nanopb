@@ -19,34 +19,34 @@
 ## Task 2: Protobuf wire format decoding primitives with input stream
 
 ### Acceptance Criteria
-- [ ] Input stream struct (pl_istream_t) with callback, state, bytes_left, errmsg fields
-- [ ] pl_istream_from_buffer() creates a buffer-backed input stream
-- [ ] pl_read() reads bytes from stream, decrements bytes_left, returns false on underflow
-- [ ] pl_decode_varint() decodes unsigned 64-bit varint from stream (0x00→0, 0x7F→127, 0x80 0x01→128, 0xAC 0x02→300)
-- [ ] pl_decode_varint32() decodes unsigned 32-bit varint from stream with overflow checking
-- [ ] pl_decode_svarint() decodes zigzag-encoded signed varint (0x01→-1, 0x02→1, 0x03→-2)
-- [ ] pl_decode_bool() decodes varint as boolean (0→false, non-zero→true)
-- [ ] pl_decode_fixed32() reads 4 bytes in little-endian order and reassembles uint32_t
-- [ ] pl_decode_fixed64() reads 8 bytes in little-endian order and reassembles uint64_t
-- [ ] pl_decode_tag() reads a varint and splits into wire_type (low 3 bits) and tag (remaining bits), returns eof when stream empty
-- [ ] pl_skip_field() skips field data based on wire type (varint, 32-bit, 64-bit, length-delimited)
-- [ ] pl_make_string_substream() creates a length-limited substream for reading length-delimited fields
-- [ ] pl_close_string_substream() closes substream and advances parent stream past consumed bytes
+- [x] Input stream struct (pl_istream_t) with callback, state, bytes_left, errmsg fields
+- [x] pl_istream_from_buffer() creates a buffer-backed input stream
+- [x] pl_read() reads bytes from stream, decrements bytes_left, returns false on underflow
+- [x] pl_decode_varint() decodes unsigned 64-bit varint from stream (0x00→0, 0x7F→127, 0x80 0x01→128, 0xAC 0x02→300)
+- [x] pl_decode_varint32() decodes unsigned 32-bit varint from stream with overflow checking
+- [x] pl_decode_svarint() decodes zigzag-encoded signed varint (0x01→-1, 0x02→1, 0x03→-2)
+- [x] pl_decode_bool() decodes varint as boolean (0→false, non-zero→true)
+- [x] pl_decode_fixed32() reads 4 bytes in little-endian order and reassembles uint32_t
+- [x] pl_decode_fixed64() reads 8 bytes in little-endian order and reassembles uint64_t
+- [x] pl_decode_tag() reads a varint and splits into wire_type (low 3 bits) and tag (remaining bits), returns eof when stream empty
+- [x] pl_skip_field() skips field data based on wire type (varint, 32-bit, 64-bit, length-delimited)
+- [x] pl_make_string_substream() creates a length-limited substream for reading length-delimited fields
+- [x] pl_close_string_substream() closes substream and advances parent stream past consumed bytes
 - [x] Round-trip: encoding then decoding a value produces the original value for all types
 
 ## Task 3: Message descriptor system with field iteration (DONE)
 
 ### Acceptance Criteria
-- [ ] pl_field_cursor_begin() initializes a field cursor to the first field of a message descriptor and loads field metadata (tag, type, data_size, etc.)
-- [ ] pl_field_cursor_next() advances the cursor to the next field and returns false when wrapping back to the start
-- [ ] pl_field_cursor_find() locates a field by tag number, returning true if found and positioning the cursor on it
-- [ ] 1-word field descriptor format correctly encodes/decodes tag (6 bits), type (8 bits), data_offset (8 bits), size_offset (4 bits), data_size (4 bits)
-- [ ] 2-word field descriptor format correctly handles larger data_offset (16 bits), data_size (12 bits), array_size (12 bits), extended tag (10 bits)
-- [ ] 4-word field descriptor format correctly handles 32-bit data_offset, data_size, 16-bit array_size, 30-bit tag
-- [ ] Field cursor correctly computes pField, pData, and pSize pointers from a struct base address and field descriptor offsets
-- [ ] For submessage fields, the cursor loads the submsg_desc pointer from the submsg_info array
-- [ ] PL_BIND macro generates correct field_info and submsg_info arrays from a FIELDLIST macro definition
-- [ ] Field iterator works with a message containing required, optional, and repeated fields
+- [x] pl_field_cursor_begin() initializes a field cursor to the first field of a message descriptor and loads field metadata (tag, type, data_size, etc.)
+- [x] pl_field_cursor_next() advances the cursor to the next field and returns false when wrapping back to the start
+- [x] pl_field_cursor_find() locates a field by tag number, returning true if found and positioning the cursor on it
+- [x] 1-word field descriptor format correctly encodes/decodes tag (6 bits), type (8 bits), data_offset (8 bits), size_offset (4 bits), data_size (4 bits)
+- [x] 2-word field descriptor format correctly handles larger data_offset (16 bits), data_size (12 bits), array_size (12 bits), extended tag (10 bits)
+- [x] 4-word field descriptor format correctly handles 32-bit data_offset, data_size, 16-bit array_size, 30-bit tag
+- [x] Field cursor correctly computes pField, pData, and pSize pointers from a struct base address and field descriptor offsets
+- [x] For submessage fields, the cursor loads the submsg_desc pointer from the submsg_info array
+- [x] PL_BIND macro generates correct field_info and submsg_info arrays from a FIELDLIST macro definition
+- [x] Field iterator works with a message containing required, optional, and repeated fields
 
 ## Task 4: Automatic message encoding
 
@@ -67,3 +67,24 @@
 - [x] pl_get_encoded_size returns the correct byte count matching actual encoded output
 - [x] Empty message (zero fields) encodes to zero bytes successfully
 - [x] Oneof field encodes only when the which_tag selector matches the field tag
+
+## Task 5: Automatic message decoding with required field validation
+
+### Acceptance Criteria
+- [x] pl_decode_message() reads wire format tags, finds matching fields, and decodes each value into the struct
+- [x] Required int32 field decodes correctly from tag+varint wire format
+- [x] Optional field sets has_xxx=true when present; field remains at default when absent
+- [x] Repeated packed array decodes from length-delimited wire format into array with count
+- [x] String field decodes from tag+length+bytes into null-terminated char array
+- [x] Bytes field decodes into pl_bytes_array_t with size and data
+- [x] Nested submessage decodes recursively from tag+length+submessage wire data
+- [x] Bool field decodes from varint (0→false, non-zero→true)
+- [x] Fixed32/float field decodes from 4 little-endian bytes
+- [x] Signed varint (svarint) decodes with zigzag decoding
+- [x] Missing required field causes pl_decode_message to return false with error
+- [x] Unknown fields (unrecognized tags) are silently skipped
+- [x] pl_decode_message_ex with PL_DECODE_DELIMITED reads length prefix then decodes
+- [x] pl_decode_message_ex with PL_DECODE_NULLTERMINATED stops at zero tag byte
+- [x] Struct fields are initialized to defaults before decoding (unless PL_DECODE_NOINIT)
+- [x] Oneof field sets which_tag and decodes the value
+- [x] Full round-trip: encode then decode produces identical struct contents
