@@ -34,7 +34,7 @@
 - [ ] pl_close_string_substream() closes substream and advances parent stream past consumed bytes
 - [x] Round-trip: encoding then decoding a value produces the original value for all types
 
-## Task 3: Message descriptor system with field iteration
+## Task 3: Message descriptor system with field iteration (DONE)
 
 ### Acceptance Criteria
 - [ ] pl_field_cursor_begin() initializes a field cursor to the first field of a message descriptor and loads field metadata (tag, type, data_size, etc.)
@@ -47,3 +47,23 @@
 - [ ] For submessage fields, the cursor loads the submsg_desc pointer from the submsg_info array
 - [ ] PL_BIND macro generates correct field_info and submsg_info arrays from a FIELDLIST macro definition
 - [ ] Field iterator works with a message containing required, optional, and repeated fields
+
+## Task 4: Automatic message encoding
+
+### Acceptance Criteria
+- [x] pl_encode_message() iterates all fields using pl_field_cursor and encodes each non-default field
+- [x] Required int32 field encodes correctly as tag varint + value varint
+- [x] Optional field with has_xxx=true encodes; has_xxx=false skips the field
+- [x] Repeated packable field encodes as packed array (tag + length + concatenated values)
+- [x] String field encodes as tag + varint length + UTF-8 bytes
+- [x] Bytes field (pl_bytes_array_t) encodes as tag + varint length + raw bytes
+- [x] Nested submessage encodes as tag + varint length + recursively encoded submessage
+- [x] Bool field encodes as tag + varint (0 or 1)
+- [x] Fixed32/float field encodes as tag + 4 little-endian bytes
+- [x] Signed varint (svarint/sint32) field encodes with zigzag encoding
+- [x] Proto3 singular fields (OPTIONAL without has_field) skip encoding when value is zero/empty
+- [x] pl_encode_message_ex with PL_ENCODE_DELIMITED wraps message in length-delimited framing
+- [x] pl_encode_message_ex with PL_ENCODE_NULLTERMINATED appends a zero byte after the message
+- [x] pl_get_encoded_size returns the correct byte count matching actual encoded output
+- [x] Empty message (zero fields) encodes to zero bytes successfully
+- [x] Oneof field encodes only when the which_tag selector matches the field tag

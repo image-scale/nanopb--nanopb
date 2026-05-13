@@ -13,3 +13,10 @@
 **Commit**: Add protobuf wire format decoding primitives with buffer-based input streams
 **Acceptance**: 14/14 criteria met
 **Verification**: tests FAIL on previous state (patch cannot apply), PASS on current state
+
+## Round 3
+**Task**: Task 3 — Message descriptor system with field iteration and tag-based lookup
+**Files created**: include/protolite_common.h, src/pl_common.c, tests/test_field_iter.c
+**Commit**: Add message descriptor system with field iteration and tag-based lookup
+**Acceptance**: 10/10 criteria met
+**Verification**: tests FAIL on previous state (patch cannot apply), PASS on current state
