@@ -36,3 +36,11 @@
 **Commit**: Add automatic message decoding that reads wire format tags, finds matching fields via descriptor lookup, and decodes each value into a C struct with required field validation
 **Acceptance**: 17/17 criteria met
 **Verification**: tests FAIL on previous state (64 of 107 fail), PASS on current state (538 total)
+
+## Round 6
+**Task**: Task 6 — Callback fields, extension field handling, and advanced features
+**Files created**: tests/test_advanced.c
+**Files modified**: run_test.sh
+**Commit**: Add callback field and extension field tests with encode size calculation and delimited/null-terminated mode round-trips
+**Acceptance**: 79 tests pass (callbacks, extensions, modes, sizing)
+**Verification**: tests FAIL on previous state (new file), PASS on current state (617 total)
