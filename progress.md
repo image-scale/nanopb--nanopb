@@ -20,3 +20,11 @@
 **Commit**: Add message descriptor system with field iteration and tag-based lookup
 **Acceptance**: 10/10 criteria met
 **Verification**: tests FAIL on previous state (patch cannot apply), PASS on current state
+
+## Round 4
+**Task**: Task 4 — Automatic message encoding with field iteration and wire format output
+**Files created**: tests/test_msg_encode.c
+**Files modified**: src/pl_encode.c, run_test.sh
+**Commit**: Add automatic message encoding that iterates struct fields and produces wire format output
+**Acceptance**: 16/16 criteria met
+**Verification**: tests FAIL on previous state (patch cannot apply), PASS on current state
