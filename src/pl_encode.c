@@ -468,9 +468,24 @@ static bool encode_array(pl_ostream_t *stream, pl_field_cursor_t *field)
     {
         for (i = 0; i < count; i++)
         {
+            if (PL_ALLOC(field->type) == PL_ALLOC_POINTER &&
+                (PL_DTYPE(field->type) == PL_DTYPE_STRING ||
+                 PL_DTYPE(field->type) == PL_DTYPE_BYTES))
+            {
+                field->pData = *(void* const*)field->pData;
+            }
             if (!encode_basic_field(stream, field))
                 return false;
-            field->pData = (char*)field->pData + field->data_size;
+            if (PL_ALLOC(field->type) == PL_ALLOC_POINTER &&
+                (PL_DTYPE(field->type) == PL_DTYPE_STRING ||
+                 PL_DTYPE(field->type) == PL_DTYPE_BYTES))
+            {
+                field->pData = *(char**)field->pField + field->data_size * (i + 1);
+            }
+            else
+            {
+                field->pData = (char*)field->pData + field->data_size;
+            }
         }
     }
 

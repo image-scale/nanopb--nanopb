@@ -26,4 +26,8 @@ echo "Compiling and running test_advanced..."
 gcc -Wall -Werror -I include -o tests/test_advanced tests/test_advanced.c src/pl_encode.c src/pl_decode.c src/pl_common.c
 ./tests/test_advanced
 
+echo "Compiling and running test_dynalloc..."
+gcc -Wall -Werror -DPL_ENABLE_MALLOC -I include -o tests/test_dynalloc tests/test_dynalloc.c src/pl_decode.c src/pl_encode.c src/pl_common.c
+./tests/test_dynalloc
+
 echo "All tests passed."

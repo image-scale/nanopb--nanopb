@@ -12,6 +12,9 @@
 
 static bool pl_message_set_to_defaults(pl_field_cursor_t *iter);
 static bool read_raw_value(pl_istream_t *stream, pl_wire_type_t wire_type, pl_byte_t *buf, size_t *size);
+#ifdef PL_ENABLE_MALLOC
+static void pl_release_single_field(pl_field_cursor_t *field);
+#endif
 
 static bool buf_read(pl_istream_t *stream, pl_byte_t *buf, size_t count)
 {
@@ -785,6 +788,134 @@ static bool read_raw_value(pl_istream_t *stream, pl_wire_type_t wire_type, pl_by
     }
 }
 
+#ifdef PL_ENABLE_MALLOC
+static bool allocate_field(pl_istream_t *stream, void *pData, size_t data_size, size_t array_size)
+{
+    void *ptr = *(void**)pData;
+
+    if (data_size == 0 || array_size == 0)
+        PL_RETURN_ERROR(stream, "invalid size");
+
+    {
+        const size_t check_limit = (size_t)1 << (sizeof(size_t) * 4);
+        if (data_size >= check_limit || array_size >= check_limit)
+        {
+            const size_t size_max = (size_t)-1;
+            if (size_max / array_size < data_size)
+                PL_RETURN_ERROR(stream, "size too large");
+        }
+    }
+
+    ptr = pl_realloc(ptr, array_size * data_size);
+    if (ptr == NULL)
+        PL_RETURN_ERROR(stream, "realloc failed");
+
+    *(void**)pData = ptr;
+    return true;
+}
+
+static void initialize_pointer_field(void *pItem, pl_field_cursor_t *field)
+{
+    if (PL_DTYPE(field->type) == PL_DTYPE_STRING ||
+        PL_DTYPE(field->type) == PL_DTYPE_BYTES)
+    {
+        *(void**)pItem = NULL;
+    }
+    else if (PL_DTYPE_IS_SUBMSG(field->type))
+    {
+        memset(pItem, 0, field->data_size);
+    }
+}
+
+static bool decode_pointer_field(pl_istream_t *stream, pl_wire_type_t wire_type, pl_field_cursor_t *field)
+{
+    switch (PL_CARD(field->type))
+    {
+        case PL_CARD_REQUIRED:
+        case PL_CARD_OPTIONAL:
+        case PL_CARD_ONEOF:
+            if (PL_DTYPE_IS_SUBMSG(field->type) && *(void**)field->pField != NULL)
+                pl_release_single_field(field);
+
+            if (PL_CARD(field->type) == PL_CARD_ONEOF)
+                *(pl_size_t*)field->pSize = field->tag;
+
+            if (PL_DTYPE(field->type) == PL_DTYPE_STRING ||
+                PL_DTYPE(field->type) == PL_DTYPE_BYTES)
+            {
+                field->pData = field->pField;
+                return decode_basic_field(stream, wire_type, field);
+            }
+            else
+            {
+                if (!allocate_field(stream, field->pField, field->data_size, 1))
+                    return false;
+
+                field->pData = *(void**)field->pField;
+                initialize_pointer_field(field->pData, field);
+                return decode_basic_field(stream, wire_type, field);
+            }
+
+        case PL_CARD_REPEATED:
+            if (wire_type == PL_WT_STRING
+                && PL_DTYPE(field->type) <= PL_DTYPE_LAST_PACKABLE)
+            {
+                bool status = true;
+                pl_size_t *size = (pl_size_t*)field->pSize;
+                size_t allocated_size = *size;
+                pl_istream_t substream;
+
+                if (!pl_make_string_substream(stream, &substream))
+                    return false;
+
+                while (substream.bytes_left)
+                {
+                    if ((size_t)*size + 1 > allocated_size)
+                    {
+                        size_t remain = (substream.bytes_left - 1) / field->data_size + 1;
+                        allocated_size += remain;
+
+                        if (!allocate_field(&substream, field->pField, field->data_size, allocated_size))
+                        {
+                            status = false;
+                            break;
+                        }
+                    }
+
+                    field->pData = *(char**)field->pField + field->data_size * (*size);
+                    initialize_pointer_field(field->pData, field);
+                    if (!decode_basic_field(&substream, PL_WT_PACKED, field))
+                    {
+                        status = false;
+                        break;
+                    }
+
+                    (*size)++;
+                }
+                if (!pl_close_string_substream(stream, &substream))
+                    return false;
+
+                return status;
+            }
+            else
+            {
+                pl_size_t *size = (pl_size_t*)field->pSize;
+
+                if (!allocate_field(stream, field->pField, field->data_size, (size_t)(*size + 1)))
+                    return false;
+
+                field->pData = *(char**)field->pField + field->data_size * (*size);
+                (*size)++;
+                initialize_pointer_field(field->pData, field);
+                return decode_basic_field(stream, wire_type, field);
+            }
+
+        default:
+            PL_RETURN_ERROR(stream, "invalid field type");
+    }
+}
+#endif
+
 static bool decode_field(pl_istream_t *stream, pl_wire_type_t wire_type, pl_field_cursor_t *field)
 {
     switch (PL_ALLOC(field->type))
@@ -799,7 +930,7 @@ static bool decode_field(pl_istream_t *stream, pl_wire_type_t wire_type, pl_fiel
 #ifndef PL_ENABLE_MALLOC
             PL_RETURN_ERROR(stream, "no malloc support");
 #else
-            PL_RETURN_ERROR(stream, "pointer decode not implemented");
+            return decode_pointer_field(stream, wire_type, field);
 #endif
 
         default:
@@ -1098,17 +1229,82 @@ void pl_release(const pl_msg_descriptor_t *fields, void *dest_struct)
 
     do
     {
-        if (PL_ALLOC(iter.type) == PL_ALLOC_POINTER)
-        {
-            if (PL_CARD(iter.type) == PL_CARD_REPEATED)
-                *(pl_size_t*)iter.pSize = 0;
-
-            pl_free(*(void**)iter.pField);
-            *(void**)iter.pField = NULL;
-        }
+        pl_release_single_field(&iter);
     } while (pl_field_cursor_next(&iter));
 #else
     PL_UNUSED(fields);
     PL_UNUSED(dest_struct);
 #endif
 }
+
+#ifdef PL_ENABLE_MALLOC
+static void pl_release_single_field(pl_field_cursor_t *field)
+{
+    pl_type_t type = field->type;
+
+    if (PL_CARD(type) == PL_CARD_ONEOF)
+    {
+        if (*(pl_size_t*)field->pSize != field->tag)
+            return;
+    }
+
+    if (PL_DTYPE(type) == PL_DTYPE_EXTENSION)
+    {
+        pl_extension_t *ext = *(pl_extension_t**)field->pData;
+        while (ext != NULL)
+        {
+            pl_field_cursor_t ext_iter;
+            if (pl_field_cursor_begin_extension(&ext_iter, ext))
+                pl_release_single_field(&ext_iter);
+            ext = ext->next;
+        }
+    }
+    else if (PL_DTYPE_IS_SUBMSG(type) && PL_ALLOC(type) != PL_ALLOC_CALLBACK)
+    {
+        pl_size_t count = 1;
+
+        if (PL_ALLOC(type) == PL_ALLOC_POINTER)
+            field->pData = *(void**)field->pField;
+        else
+            field->pData = field->pField;
+
+        if (PL_CARD(type) == PL_CARD_REPEATED)
+        {
+            count = *(pl_size_t*)field->pSize;
+            if (PL_ALLOC(type) == PL_ALLOC_STATIC && count > field->array_size)
+                count = field->array_size;
+        }
+
+        if (field->pData)
+        {
+            for (; count > 0; count--)
+            {
+                pl_release(field->submsg_desc, field->pData);
+                field->pData = (char*)field->pData + field->data_size;
+            }
+        }
+    }
+
+    if (PL_ALLOC(type) == PL_ALLOC_POINTER)
+    {
+        if (PL_CARD(type) == PL_CARD_REPEATED &&
+            (PL_DTYPE(type) == PL_DTYPE_STRING ||
+             PL_DTYPE(type) == PL_DTYPE_BYTES))
+        {
+            void **pItem = *(void***)field->pField;
+            pl_size_t count = *(pl_size_t*)field->pSize;
+            for (; count > 0; count--)
+            {
+                pl_free(*pItem);
+                *pItem++ = NULL;
+            }
+        }
+
+        if (PL_CARD(type) == PL_CARD_REPEATED)
+            *(pl_size_t*)field->pSize = 0;
+
+        pl_free(*(void**)field->pField);
+        *(void**)field->pField = NULL;
+    }
+}
+#endif
